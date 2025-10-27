@@ -64,6 +64,7 @@ async function run() {
   const blueskyId = await ask('Bluesky identifier (email or handle) (BLUESKY_IDENTIFIER):', 'BLUESKY_IDENTIFIER')
   let blueskyPw = ''
   if (blueskyId) blueskyPw = await ask('Bluesky password (BLUESKY_PASSWORD) (input hidden):', 'BLUESKY_PASSWORD', true)
+  const blueskyService = await ask('Bluesky service URL (BLUESKY_SERVICE) [default https://bsky.social]:', 'BLUESKY_SERVICE')
 
   console.log('\nNostr: you can provide an nsec (bech32) or let the script generate one and save to file with restricted perms.')
   const nostrNsec = await ask('Nostr nsec (nsec1...) or leave empty to generate:', 'NOSTR_NSEC', true)
@@ -83,6 +84,17 @@ async function run() {
   else if (existing.BLUESKY_IDENTIFIER) lines.push(`BLUESKY_IDENTIFIER=${existing.BLUESKY_IDENTIFIER}`)
   if (blueskyPw) lines.push(`BLUESKY_PASSWORD=${blueskyPw}`)
   else if (existing.BLUESKY_PASSWORD) lines.push(`BLUESKY_PASSWORD=${existing.BLUESKY_PASSWORD}`)
+  // BLUESKY_SERVICE: allow custom PDS URL, default to https://bsky.social
+  if (blueskyService) {
+    lines.push(`BLUESKY_SERVICE=${blueskyService}`)
+    process.env.BLUESKY_SERVICE = blueskyService
+  } else if (existing.BLUESKY_SERVICE) {
+    lines.push(`BLUESKY_SERVICE=${existing.BLUESKY_SERVICE}`)
+    process.env.BLUESKY_SERVICE = existing.BLUESKY_SERVICE
+  } else {
+    lines.push(`BLUESKY_SERVICE=https://bsky.social`)
+    process.env.BLUESKY_SERVICE = 'https://bsky.social'
+  }
 
   if (nostrNsec) lines.push(`NOSTR_NSEC=${nostrNsec}`)
   else if (existing.NOSTR_NSEC) lines.push(`NOSTR_NSEC=${existing.NOSTR_NSEC}`)
