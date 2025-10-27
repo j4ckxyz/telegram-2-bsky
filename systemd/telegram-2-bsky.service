@@ -1,0 +1,15 @@
+[Unit]
+Description=telegram-2-bsky bot
+After=network.target
+
+[Service]
+Type=simple
+User=telegrambot
+WorkingDirectory=/home/telegrambot/telegram-2-bsky
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

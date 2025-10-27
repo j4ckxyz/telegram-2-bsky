@@ -1,0 +1,21 @@
+{
+  "name": "telegram-2-bsky",
+  "version": "0.1.0",
+  "description": "Telegram -> Twitter(emu)/Bluesky/Nostr crossposter for Raspberry Pi",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "login:twitter": "node scripts/login_twitter.js",
+    "setup:nostr": "node scripts/setup_nostr.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.17.4",
+    "dotenv": "^16.0.0",
+    "emusks": "^0.0.3",
+    "nostr-tools": "^2.17.1",
+    "telegraf": "^4.12.0"
+  }
+}
