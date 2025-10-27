@@ -1,7 +1,7 @@
 require('dotenv').config()
 const fs = require('fs')
 const path = require('path')
-const { AtpAgent } = require('@atproto/api')
+const { AtpAgent, RichText } = require('@atproto/api')
 
 const service = process.env.BLUESKY_SERVICE || 'https://bsky.social'
 const sessionFile = process.env.BLUESKY_SESSION_FILE || './data/bluesky_session.json'
@@ -72,9 +72,19 @@ async function post(text) {
   }
   if (!agent.session) throw new Error('Bluesky not authenticated')
 
+  // Use RichText to detect links, mentions and facets so hashtags and link preview facets work properly
+  const rt = new RichText({ text })
+  try {
+    // detect facets (this may add link facets for embedded cards)
+    await rt.detectFacets(agent)
+  } catch (e) {
+    console.warn('RichText.detectFacets failed:', e.message)
+  }
+
   const record = {
     $type: 'app.bsky.feed.post',
-    text,
+    text: rt.text,
+    facets: rt.facets,
     createdAt: new Date().toISOString(),
   }
   const res = await agent.post(record)

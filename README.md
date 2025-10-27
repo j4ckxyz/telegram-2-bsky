@@ -1,35 +1,80 @@
 # telegram-2-bsky
 
-Small Node.js Telegram bot for Raspberry Pi that accepts commands from a single Telegram user and crossposts messages to Twitter (using emusks), Bluesky (using @atproto/api) and Nostr (using nostr-tools).
+Small Node.js Telegram bot for Raspberry Pi that accepts messages from a single Telegram user and crossposts them to Twitter (using emusks), Bluesky (using @atproto/api) and Nostr (using nostr-tools).
 
-Overview
-- Telegram bot that only accepts messages from your Telegram user id
-- Posts text messages to: Twitter (emusks), Bluesky (AT Protocol) and Nostr relays
-- Session persistence for Bluesky and Twitter (auth token). Nostr private key stored in file with restricted permissions.
+Why this project
+- Single-user crossposter for fast, personal posting from Telegram to multiple social/protocol targets.
+- Designed to run on low-powered devices (Raspberry Pi).
 
-Quick start
-1. Clone this repo
-2. Copy `.env.example` to `.env` and populate environment variables
-3. Create the `data/` directory and ensure it's writable by the bot process but not world-readable: `mkdir -p data && chmod 700 data`
-4. Install deps: `npm install`
-5. Run the interactive setup script which installs deps, secures `data/`, and helps you set credentials:
+Quick start (recommended)
+1. Clone this repo and cd into it:
 
 ```bash
-npx node scripts/setup.js
+git clone <repo-url> telegram-2-bsky
+cd telegram-2-bsky
 ```
 
-	- The script will prompt for Telegram token and user id, Twitter auth_token (recommended to paste manually), Bluesky identifier/password (optional), and Nostr nsec (or it will generate one and save it securely).
-	- The script will attempt a Bluesky login when identifier/password are provided and persist the session to disk.
+2. Run the interactive setup (it will run `npm install`, create `data/` with secure perms, and guide you through credentials):
 
-6. Start the bot: `npm start`
+```bash
+node scripts/setup.js
+```
 
-Security notes
-- The Twitter solution (emusks) expects a valid `auth_token` cookie; this can be fragile and may require manual extraction.
-- Bluesky sessions are persisted to disk; keep `data/` secure and only readable by the bot user.
-- Nostr private key (nsec) is stored in `NOSTR_NSEC_FILE` and created with `chmod 600` — keep it secret.
+3. Start the bot:
 
-Raspberry Pi / systemd
-Create a systemd service that runs `npm start` under a dedicated user and sets the working directory to the project folder. Ensure the user has access only to the minimal files and `data/`.
+```bash
+npm start
+```
 
-Further customization
-- The project is intentionally small and opinionated; feel free to extend the crossposter to handle images and scheduling.
+What the setup script asks for
+- TELEGRAM_BOT_TOKEN — create a bot with BotFather on Telegram (steps below).
+- TELEGRAM_ALLOWED_USER_ID — numeric id of your Telegram account; only this user can post through the bot.
+- TWITTER_AUTH_TOKEN — X/Twitter `auth_token` cookie (paste from your browser) if you want Twitter posting enabled. emusks requires this.
+- BLUESKY_IDENTIFIER & BLUESKY_PASSWORD — optional; setup will attempt to login and persist a session to `BLUESKY_SESSION_FILE`.
+- NOSTR_NSEC — optional; leave empty to have the script generate and securely save one to `data/`.
+
+Creating a Telegram bot (short)
+1. Chat with @BotFather on Telegram and run `/newbot`.
+2. Choose a name and username; BotFather returns `TELEGRAM_BOT_TOKEN`.
+3. Start a conversation with your new bot from your personal Telegram account and note your numeric user id (use @userinfobot or call the Bot API `getUpdates` and read `from.id`). Put that id into `TELEGRAM_ALLOWED_USER_ID`.
+
+Bluesky: PDS (service) support and link/hashtag faceting
+- Use `BLUESKY_SERVICE` in `.env` to point to any AT Protocol-compatible PDS (for example `https://bsky.social` or `https://my-pds.example.com`). The code constructs the client with that service URL.
+- The bot uses `@atproto/api`'s `RichText` helper to detect link and mention facets before posting. This ensures link preview facets (embed cards) are attached where the PDS supports them, and preserves hashtags in the text.
+
+Implementation notes (hashtags & link cards)
+- We create a `RichText` with the post text and run `await rt.detectFacets(agent)` before posting. That populates `rt.facets` with link/mention facets and normalizes text.
+- The post record includes `text: rt.text` and `facets: rt.facets` so Bluesky clients can render link cards and highlight mentions. Hashtags (e.g. `#rust`) remain in the post text and are indexed/searchable by the PDS.
+
+If you are running a private or third-party PDS, just set `BLUESKY_SERVICE` in `.env` before running `node scripts/setup.js`.
+
+Twitter (emusks) notes
+- emusks is reverse-engineered and requires an `auth_token` cookie from x.com. Manual cookie copy is the most robust approach. Automating login with Playwright is fragile when 2FA/CAPTCHAs are enabled.
+
+Nostr notes
+- The script will generate and store an `nsec` key if you don't provide one. The key file is written with `0600` perms. Keep it secret.
+
+Running as a service (systemd)
+- A template is included at `systemd/telegram-2-bsky.service`. Create a dedicated system user (e.g. `telegrambot`) and update `WorkingDirectory` in the unit file before enabling.
+
+Pushing to GitHub
+- Authenticate locally with the GH CLI (`gh auth login`) and use the included push helper or run:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+gh repo create my-telegram-2-bsky --public --source=. --remote=origin --push
+```
+
+Replace `my-telegram-2-bsky` with the repo name you want. The CLI will guide you through authentication and permissions.
+
+Security
+- Keep `.env`, `data/` and any secret files out of source control. The repo `.gitignore` excludes them by default.
+
+Troubleshooting
+- If Bluesky link previews don't appear: ensure `BLUESKY_SERVICE` points to a PDS that supports link resolution and that your session is authenticated. `RichText.detectFacets` will query the PDS while computing facets.
+
+Extending the project
+- Media uploads, richer command handling, and retry/queue logic can be added later. The code is intentionally small and focused on text crossposting.
+
