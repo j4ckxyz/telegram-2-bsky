@@ -1,6 +1,8 @@
 const fs = require('fs')
 const path = require('path')
-const Emusks = require('emusks')
+// emusks may export a default property when imported via CommonJS; handle both shapes
+const EmusksModule = require('emusks')
+const Emusks = EmusksModule && EmusksModule.default ? EmusksModule.default : EmusksModule
 require('dotenv').config()
 
 const authToken = process.env.TWITTER_AUTH_TOKEN
@@ -22,14 +24,21 @@ async function loadClient() {
     throw new Error('No Twitter auth token available. Set TWITTER_AUTH_TOKEN or run the login helper to extract auth_token cookie.')
   }
 
+  if (typeof Emusks !== 'function') {
+    throw new Error('emusks import is not a constructor — unexpected module shape. Make sure the package is installed correctly.')
+  }
+
   const client = new Emusks({ authToken: token })
-  await client.login()
+  if (typeof client.login === 'function') {
+    await client.login()
+  }
   return client
 }
 
 async function post(text) {
   const client = await loadClient()
   try {
+    if (typeof client.tweet !== 'function') throw new Error('emusks client does not implement tweet()')
     const res = await client.tweet({ text })
     return res
   } finally {
